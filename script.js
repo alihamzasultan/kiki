@@ -197,7 +197,69 @@ document.getElementById('chat-input').addEventListener('keydown', function (even
 const micButton = document.getElementById('mic-button');
 
 // Function to toggle the microphone and start speech recognition after interruption
+
+
+
+
+
+let recognition;
 let recognizing = false;
+
+if ('webkitSpeechRecognition' in window) {
+    recognition = new webkitSpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = false;
+    recognition.lang = 'en-US';
+
+    recognition.onresult = function (event) {
+        let transcript = event.results[event.resultIndex][0].transcript.trim();
+
+        // Only proceed if the transcript has valid input (non-empty string)
+        if (transcript.length > 0) {
+            document.getElementById("chat-input").value = transcript;
+            let message = transcript; // Captured message
+            document.getElementById('chat-output').innerHTML += `<p>User: ${message}</p>`;
+
+            // Simulate clicking the send button to handle chatbot response
+            document.getElementById('send-button').click();
+        } else {
+            console.log('No valid speech detected, skipping chatbot response.');
+        }
+    };
+
+    // Automatically restart the mic if it stops (unless manually stopped)
+    recognition.onend = function () {
+        if (recognizing) {
+            recognition.start(); // Automatically restart the mic
+            console.log("Microphone restarted");
+        } else {
+            document.getElementById('micButton').textContent = 'Start Listening';
+        }
+    };
+
+    // Handle recognition errors
+    recognition.onerror = (event) => {
+        if (event.error === 'no-speech') {
+            console.log('No speech detected. Restarting...');
+            recognition.stop();  // Ensure recognition is stopped first
+            recognition.onend = () => {  // Restart after stopping
+                recognition.start(); 
+            };
+        } else if (event.error === 'not-allowed') {
+            console.error('Permission to use microphone not granted.');
+            recognition.stop();  // Stop recognition when mic is not allowed
+            recognizing = false;
+        } else if (event.error === 'network') {
+            console.error('Network error. Please check your connection.');
+            recognition.stop();
+            recognizing = false;
+        } else {
+            console.error('Speech recognition error:', event.error);
+            recognition.stop();
+            recognizing = false;
+        }
+    };
+}
 
 function toggleMic() {
     const listeningAnimation = document.getElementById('listening-animation');
@@ -213,87 +275,8 @@ function toggleMic() {
         document.getElementById('micButton').textContent = 'Stop Listening';
         listeningAnimation.style.display = 'block'; // Show animation
     }
-
-    // Handle recognition end (restart unless stopped manually)
-
-
-    // Handle recognition errors
-    recognition.onerror = (event) => {
-        if (event.error === 'no-speech') {
-            console.log('No speech detected. Restarting...');
-            if (recognizing) {
-                recognition.stop();  // Ensure recognition is stopped first
-                recognition.onend = () => {  // Wait for the stop event before starting again
-                    recognition.start(); // Restart if no speech is detected and it's not already running
-                };
-            }
-        } else if (event.error === 'not-allowed') {
-            console.error('Permission to use microphone not granted.');
-            recognition.stop();  // Stop recognition when mic is not allowed
-            recognizing = false; // Update recognizing state
-            document.getElementById('micButton').textContent = 'Start Listening';
-            listeningAnimation.style.display = 'none'; // Hide the animation
-        } else if (event.error === 'network') {
-            console.error('Network error. Please check your connection.');
-            recognition.stop();  // Stop recognition on network error
-            recognizing = false; // Update recognizing state
-            document.getElementById('micButton').textContent = 'Start Listening';
-            listeningAnimation.style.display = 'none'; // Hide the animation
-        } else {
-            console.error('Speech recognition error:', event.error);
-            recognition.stop();  // Stop recognition in case of other errors
-            recognizing = false; // Update recognizing state
-            document.getElementById('micButton').textContent = 'Start Listening';
-            listeningAnimation.style.display = 'none'; // Hide the animation
-        }
-    };
-    
-    
 }
 
-
-
-
-let recognition;
-
-if ('webkitSpeechRecognition' in window) {
-    recognition = new webkitSpeechRecognition();
-    recognition.continuous = true;
-    recognition.interimResults = false;
-    recognition.lang = 'en-US';
-
-
-
-recognition.onresult = function (event) {
-    let transcript = event.results[event.resultIndex][0].transcript.trim();
-    let confidence = event.results[event.resultIndex][0].confidence;
-
-    // Only proceed if the transcript has valid input (non-empty and confident result)
-    if (transcript.length > 3 && confidence > 0.6) {  // Adjust the length and confidence threshold as needed
-        document.getElementById("chat-input").value = transcript;
-        let message = transcript; // Captured message
-        document.getElementById('chat-output').innerHTML += `<p>User: ${message}</p>`;
-
-        // Simulate clicking the send button to handle chatbot response
-        document.getElementById('send-button').click();
-    } else {
-        console.log('No valid speech detected or low confidence, skipping chatbot response.');
-    }
-};
-    
-    // Modify onend to detect when speech ends without valid input
-    recognition.onend = function () {
-        recognizing = false;
-        document.getElementById('micButton').textContent = 'Start Listening';
-    
-        // If the user was not speaking (no valid transcript), do not send anything
-        const chatInput = document.getElementById('chat-input').value.trim();
-        if (chatInput === "") {
-            console.log('User did not speak, no message sent.');
-        }
-    };
-    
-}
 
 // Ensure voices are loaded before using them
 window.speechSynthesis.onvoiceschanged = getVoices;
